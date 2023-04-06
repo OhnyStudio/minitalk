@@ -6,7 +6,7 @@
 /*   By: jsavard <jsavard@student.42.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/01/27 16:23:37 by jsavard           #+#    #+#             */
-/*   Updated: 2023/04/04 17:38:30 by jsavard          ###   ########.fr       */
+/*   Updated: 2023/04/06 09:53:39 by jsavard          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -35,6 +35,18 @@ char	*ft_str_add_char(char *str, char c)
 	return (new_str);
 }
 
+static void	action2(char **str, pid_t *client_pid, unsigned char c)
+{
+	if (c == 0)
+	{
+		ft_putstr_fd(*str, 1);
+		ft_putchar_fd('\n', 1);
+		*str = NULL;
+	}
+	kill(*client_pid, SIGUSR2);
+	*client_pid = 0;
+}
+
 static void	action(int sig, siginfo_t *info, void *context)
 {
 	static char				*str;
@@ -53,10 +65,7 @@ static void	action(int sig, siginfo_t *info, void *context)
 		i = 0;
 		if (!c)
 		{
-			if (c == 0)
-				ft_putstr_fd(str, 1);
-			kill(client_pid, SIGUSR2);
-			client_pid = 0;
+			action2(&str, &client_pid, c);
 			return ;
 		}
 		str = ft_str_add_char(str, c);

@@ -6,7 +6,7 @@
 /*   By: jsavard <jsavard@student.42.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/02/01 13:59:27 by jsavard           #+#    #+#             */
-/*   Updated: 2023/04/04 16:06:59 by jsavard          ###   ########.fr       */
+/*   Updated: 2023/04/06 09:57:58 by jsavard          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -26,7 +26,7 @@ static void	action(int sig)
 	}
 }
 
-static void	ft_kill(int pid, char *str)
+static void	send_with_kill(int pid, char *str)
 {
 	int		i;
 	char	c;
@@ -62,7 +62,7 @@ int	main(int argc, char **argv)
 	ft_putstr_fd("Received: ", 1);
 	signal(SIGUSR1, action);
 	signal(SIGUSR2, action);
-	ft_kill(ft_atoi(argv[1]), argv[2]);
+	send_with_kill(ft_atoi(argv[1]), argv[2]);
 	while (1)
 		pause();
 	return (0);
