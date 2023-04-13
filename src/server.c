@@ -6,87 +6,87 @@
 /*   By: jsavard <jsavard@student.42.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/01/27 16:23:37 by jsavard           #+#    #+#             */
-/*   Updated: 2023/04/06 09:53:39 by jsavard          ###   ########.fr       */
+/*   Updated: 2023/04/13 18:26:15 by jsavard          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "../include/minitalk.h"
 
-char	*ft_str_add_char(char *str, char c)
+struct s_server_info	server_info;
+
+static char	*str_add_char(char *str, char c)
 {
 	char	*new_str;
-	size_t	i;
-	size_t	j;
-	size_t	len;
+	int		len;
+	int		i;
 
-	len = ft_strlen(str) + 2;
-	new_str = malloc(sizeof(*str) * len);
-	if (!new_str)
-		return (NULL);
 	i = 0;
-	j = 0;
-	while (str[i])
+	len = ft_strlen(str);
+	new_str = ft_calloc(len + 2, sizeof(char));
+	if (str)
 	{
-		new_str[j++] = str[i];
-		i++;
+		while (str[i])
+		{
+			new_str[i] = str[i];
+			i++;
+		}
 	}
-	new_str[j++] = c;
-	new_str[j] = 0;
+	new_str[i] = c;
+	free(str);
 	return (new_str);
 }
 
-static void	action2(char **str, pid_t *client_pid, unsigned char c)
+static void	ft_cleanserver(int *binairy, int *received)
 {
-	if (c == 0)
-	{
-		ft_putstr_fd(*str, 1);
-		ft_putchar_fd('\n', 1);
-		*str = NULL;
-	}
-	kill(*client_pid, SIGUSR2);
-	*client_pid = 0;
+	free(server_info.msg);
+	server_info.msg = 0;
+	server_info.client_pid = 0;
+	*binairy = 0;
+	*received = 0;
 }
 
-static void	action(int sig, siginfo_t *info, void *context)
+static void	received_with_kill(int signal, siginfo_t *client, void *empty)
 {
-	static char				*str;
-	static int				i = 0;
-	static pid_t			client_pid = 0;
-	static unsigned char	c = 0;
+	static int	binairy;
+	static int	received;
 
-	(void)*context;
-	if (!str)
-		str = malloc(sizeof(*str));
-	if (!client_pid)
-		client_pid = info->si_pid;
-	c |= (sig == SIGUSR2);
-	if (++i == 8)
-	{
-		i = 0;
-		if (!c)
+	(void)empty;
+	if (server_info.client_pid != client->si_pid && client->si_pid != 0)
+		ft_cleanserver(&binairy, &received);
+	if (!server_info.client_pid)
+		server_info.client_pid = client->si_pid;
+	if (signal == SIGUSR1)
+		received |= (1 << binairy);
+	if (++binairy == 8)
+	{	
+		if (!received)
 		{
-			action2(&str, &client_pid, c);
+			ft_putendl_fd(server_info.msg, 1);
+			kill(server_info.client_pid, SIGUSR1);
+			ft_cleanserver(&binairy, &received);
 			return ;
 		}
-		str = ft_str_add_char(str, c);
-		c = 0;
-		kill(client_pid, SIGUSR1);
+		else
+			server_info.msg = str_add_char(server_info.msg, received);
+		binairy = 0;
+		received = 0;
 	}
-	else
-		c <<= 1;
+	kill(server_info.client_pid, SIGUSR2);
 }
 
 int	main(void)
 {
 	struct sigaction	s_sigaction;
 
+	s_sigaction.sa_sigaction = received_with_kill;
+	s_sigaction.sa_flags = SA_SIGINFO;
+	server_info.msg = NULL;
+	server_info.client_pid = 0;
 	ft_putstr_fd("Server PID: ", 1);
 	ft_putnbr_fd(getpid(), 1);
 	ft_putchar_fd('\n', 1);
-	s_sigaction.sa_sigaction = action;
-	s_sigaction.sa_flags = SA_SIGINFO;
-	sigaction(SIGUSR1, &s_sigaction, 0);
-	sigaction(SIGUSR2, &s_sigaction, 0);
+	sigaction(SIGUSR1, &s_sigaction, NULL);
+	sigaction(SIGUSR2, &s_sigaction, NULL);
 	while (1)
 		pause();
 	return (0);

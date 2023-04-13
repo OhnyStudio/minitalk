@@ -6,63 +6,64 @@
 /*   By: jsavard <jsavard@student.42.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/02/01 13:59:27 by jsavard           #+#    #+#             */
-/*   Updated: 2023/04/06 09:57:58 by jsavard          ###   ########.fr       */
+/*   Updated: 2023/04/13 18:27:32 by jsavard          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "../include/minitalk.h"
 
-static void	action(int sig)
-{
-	static int	received = 0;
+struct s_client_info	client_info;
 
-	if (sig == SIGUSR1)
-		++received;
-	else
-	{
-		ft_putnbr_fd(received, 1);
-		ft_putchar_fd('\n', 1);
-		exit(0);
-	}
+static void	ft_init(char **argv)
+{
+	client_info.current_bit = 0;
+	client_info.i = 0;
+	client_info.msg = argv[2];
+	client_info.server_pid = ft_atoi(argv[1]);
+	client_info.len = ft_strlen(client_info.msg);
 }
 
-static void	send_with_kill(int pid, char *str)
+static void	send_with_kill(int signal, siginfo_t *server, void *empty)
 {
-	int		i;
-	char	c;
-
-	while (*str)
+	(void)empty;
+	(void)server;
+	if (signal == SIGUSR1)
 	{
-		i = 8;
-		c = *str++;
-		while (i--)
+		ft_putendl_fd("Server received message!", 1);
+		exit(EXIT_SUCCESS);
+	}
+	else if (signal == SIGUSR2)
+	{
+		if (client_info.len >= 0
+			&& (client_info.msg[client_info.i] 
+				& (1 << client_info.current_bit)))
+			kill(client_info.server_pid, SIGUSR1);
+		else
+			kill(client_info.server_pid, SIGUSR2);
+		client_info.current_bit++;
+		if (client_info.current_bit == 8)
 		{
-			if (c >> i & 1)
-				kill(pid, SIGUSR2);
-			else
-				kill(pid, SIGUSR1);
-			usleep(100);
+			client_info.i++;
+			client_info.current_bit = 0;
+			client_info.len--;
 		}
 	}
-	i = 8;
-	while (i--)
-	{
-		kill(pid, SIGUSR1);
-		usleep(100);
-	}
+	else if (signal == -1)
+		exit(EXIT_FAILURE);
 }
 
 int	main(int argc, char **argv)
 {
-	if (argc != 3 || !ft_strlen(argv[2]))
+	struct sigaction	c_sigaction;
+
+	if (argc != 3)
 		return (1);
-	ft_putstr_fd("Sent : ", 1);
-	ft_putnbr_fd(ft_strlen(argv[2]), 1);
-	ft_putchar_fd('\n', 1);
-	ft_putstr_fd("Received: ", 1);
-	signal(SIGUSR1, action);
-	signal(SIGUSR2, action);
-	send_with_kill(ft_atoi(argv[1]), argv[2]);
+	c_sigaction.sa_sigaction = send_with_kill;
+	c_sigaction.sa_flags = SA_SIGINFO;
+	ft_init(argv);
+	sigaction(SIGUSR1, &c_sigaction, NULL);
+	sigaction(SIGUSR2, &c_sigaction, NULL);
+	kill(getpid(), SIGUSR2);
 	while (1)
 		pause();
 	return (0);
